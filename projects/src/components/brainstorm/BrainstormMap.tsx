@@ -421,34 +421,34 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
             </div>
           )}
 
+          <div className="flex gap-2">
+            <div className={`w-7 h-7 rounded-full ${getUserColor(currentUser.username, userColorMap).dot} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 mt-0.5`}>
+              {currentUser.username.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 flex gap-2">
+              <Textarea
+                placeholder="发表你的想法、建议或意见..."
+                value={newContent}
+                onChange={(e) => setNewContent(e.target.value)}
+                rows={2}
+                className="text-sm resize-none"
+              />
+              <Button
+                size="sm"
+                className="h-auto self-end gap-1"
+                onClick={handleSubmit}
+                disabled={!newContent.trim() || submitting}
+              >
+                <Send className="h-3.5 w-3.5" />
+                {submitting ? '...' : '发表'}
+              </Button>
+            </div>
+          </div>
+
           {loading ? (
             <div className="text-xs text-muted-foreground py-2">加载中...</div>
           ) : (
             <>
-              <div className="flex gap-2">
-                <div className={`w-7 h-7 rounded-full ${getUserColor(currentUser.username, userColorMap).dot} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 mt-0.5`}>
-                  {currentUser.username.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 flex gap-2">
-                  <Textarea
-                    placeholder="发表你的想法、建议或意见..."
-                    value={newContent}
-                    onChange={(e) => setNewContent(e.target.value)}
-                    rows={2}
-                    className="text-sm resize-none"
-                  />
-                  <Button
-                    size="sm"
-                    className="h-auto self-end gap-1"
-                    onClick={handleSubmit}
-                    disabled={!newContent.trim() || submitting}
-                  >
-                    <Send className="h-3.5 w-3.5" />
-                    {submitting ? '...' : '发表'}
-                  </Button>
-                </div>
-              </div>
-
               {aiItems.length > 0 && (
                 <div className="space-y-2">
                   {aiItems.map(item => {
