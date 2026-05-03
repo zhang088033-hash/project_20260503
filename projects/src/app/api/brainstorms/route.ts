@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDrizzleClient } from '@/storage/database/supabase-client';
 import { brainstorms, tasks } from '@/storage/database/shared/schema';
-import { eq, orderBy, isNotNull } from 'drizzle-orm';
+import { eq, isNotNull } from 'drizzle-orm';
 import { verifyToken } from '@/lib/auth';
 
 function getUserFromRequest(request: NextRequest): { id: number; username: string } | null {

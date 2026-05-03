@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDrizzleClient } from '@/storage/database/supabase-client';
 import { tasks } from '@/storage/database/shared/schema';
-import { eq, gte, lte, lt, ne, and, orderBy } from 'drizzle-orm';
+import { eq, gte, lte, lt, ne, and } from 'drizzle-orm';
 import { verifyToken } from '@/lib/auth';
 
 // 从请求头获取当前用户
