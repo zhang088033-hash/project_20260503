@@ -44,8 +44,8 @@ export async function GET(request: NextRequest) {
     if (today === 'true') {
       const todayStr = new Date().toISOString().split('T')[0];
       conditions.push(and(
-        gte(tasks.deadline, `${todayStr}T00:00:00`),
-        lte(tasks.deadline, `${todayStr}T23:59:59`)
+        gte(tasks.deadline, new Date(`${todayStr}T00:00:00`)),
+        lte(tasks.deadline, new Date(`${todayStr}T23:59:59`))
       ));
     }
     if (overdue === 'true') {
