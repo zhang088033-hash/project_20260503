@@ -259,7 +259,7 @@ export function TaskTable({ tasks, onUpdateStatus, onUpdate, onDelete, currentUs
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 items-center">
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(task)}>
                           编辑
                         </Button>
@@ -270,6 +270,15 @@ export function TaskTable({ tasks, onUpdateStatus, onUpdate, onDelete, currentUs
                           onClick={() => setDeletingTaskId(task.id)}
                         >
                           删除
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="gap-1 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                          onClick={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
+                        >
+                          <Lightbulb className="h-3.5 w-3.5" />
+                          脑图
                         </Button>
                       </div>
                     </TableCell>
