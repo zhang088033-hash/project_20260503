@@ -1,0 +1,6 @@
+{
+  "schema": "./src/storage/database/shared/schema.ts",
+  "out": "./drizzle",
+  "dialect": "postgresql",
+  "url": "postgresql://postgres:cek38X4kn8wyn87pbd@cp-vocal-still-3df85767.pg4.aidap-global.cn-beijing.volces.com:5432/postgres?sslmode=require&channel_binding=require"
+}
