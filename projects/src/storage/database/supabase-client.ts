@@ -1,6 +1,6 @@
 import { execSync } from 'child_process';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { Client } from 'pg';
+import { Pool } from 'pg';
 
 let envLoaded = false;
 
@@ -77,25 +77,35 @@ function getPostgresUrl(): string {
   return `postgresql://${user}:${password}@${host}:${port}/${database}?sslmode=${sslmode}`;
 }
 
-let client: Client | null = null;
+let pool: Pool | null = null;
+let db: ReturnType<typeof drizzle> | null = null;
 
-function getDbClient(): Client {
-  if (!client) {
+function getDbPool(): Pool {
+  if (!pool) {
     const connectionString = getPostgresUrl();
-    client = new Client({
+    pool = new Pool({
       connectionString,
       ssl: process.env.DB_SSLMODE === 'require' ? { rejectUnauthorized: false } : false,
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    });
+
+    pool.on('error', (err) => {
+      console.error('Unexpected error on idle client', err);
+      pool = null;
+      db = null;
     });
   }
-  return client;
+  return pool;
 }
 
 async function getDrizzleClient() {
-  const dbClient = getDbClient();
-  if (!dbClient._connected && !dbClient._connecting) {
-    await dbClient.connect();
+  if (!db) {
+    const pgPool = getDbPool();
+    db = drizzle(pgPool);
   }
-  return drizzle(dbClient);
+  return db;
 }
 
-export { loadEnv, getPostgresUrl, getDbClient, getDrizzleClient };
+export { loadEnv, getPostgresUrl, getDrizzleClient };

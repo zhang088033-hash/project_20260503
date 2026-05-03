@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       ));
     }
     if (overdue === 'true') {
-      const now = new Date().toISOString();
+      const now = new Date();
       query = query.where(and(
         lt(tasks.deadline, now),
         ne(tasks.status, 'completed')
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
         description,
         priority,
         module: taskModule,
-        deadline: deadline ? new Date(deadline).toISOString() : null,
+        deadline: deadline ? new Date(deadline) : null,
         deliverables,
         responsible_person,
         remark,

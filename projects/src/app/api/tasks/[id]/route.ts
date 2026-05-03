@@ -40,7 +40,7 @@ export async function PUT(
     const body = await request.json();
     
     const updateData: Record<string, unknown> = {
-      updated_at: new Date().toISOString()
+      updated_at: new Date()
     };
     
     // 只更新提供的字段
@@ -48,7 +48,9 @@ export async function PUT(
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
         if (field === 'deadline' && body[field]) {
-          updateData[field] = new Date(body[field]).toISOString();
+          updateData[field] = new Date(body[field]);
+        } else if (field === 'deadline' && !body[field]) {
+          updateData[field] = null;
         } else {
           updateData[field] = body[field];
         }
