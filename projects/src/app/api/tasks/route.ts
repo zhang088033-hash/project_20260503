@@ -27,36 +27,42 @@ export async function GET(request: NextRequest) {
     const overdue = searchParams.get('overdue');
     const createdBy = searchParams.get('created_by');
     
-    let query = client.select().from(tasks);
+    const conditions = [];
     
     if (taskModule) {
-      query = query.where(eq(tasks.module, taskModule));
+      conditions.push(eq(tasks.module, taskModule));
     }
     if (priority) {
-      query = query.where(eq(tasks.priority, priority));
+      conditions.push(eq(tasks.priority, priority));
     }
     if (status) {
-      query = query.where(eq(tasks.status, status));
+      conditions.push(eq(tasks.status, status));
     }
     if (responsiblePerson) {
-      query = query.where(eq(tasks.responsible_person, responsiblePerson));
+      conditions.push(eq(tasks.responsible_person, responsiblePerson));
     }
     if (today === 'true') {
       const todayStr = new Date().toISOString().split('T')[0];
-      query = query.where(and(
+      conditions.push(and(
         gte(tasks.deadline, `${todayStr}T00:00:00`),
         lte(tasks.deadline, `${todayStr}T23:59:59`)
       ));
     }
     if (overdue === 'true') {
       const now = new Date();
-      query = query.where(and(
+      conditions.push(and(
         lt(tasks.deadline, now),
         ne(tasks.status, 'completed')
       ));
     }
     if (createdBy) {
-      query = query.where(eq(tasks.created_by, createdBy));
+      conditions.push(eq(tasks.created_by, createdBy));
+    }
+    
+    let query = client.select().from(tasks);
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
     }
     
     query = query.orderBy(tasks.deadline);

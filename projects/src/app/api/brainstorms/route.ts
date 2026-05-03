@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDrizzleClient } from '@/storage/database/supabase-client';
 import { brainstorms, tasks } from '@/storage/database/shared/schema';
-import { eq, isNotNull } from 'drizzle-orm';
+import { eq, isNotNull, and } from 'drizzle-orm';
 import { verifyToken } from '@/lib/auth';
 
 function getUserFromRequest(request: NextRequest): { id: number; username: string } | null {
@@ -30,15 +30,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: '无效的 task_id' }, { status: 400 });
     }
 
-    let query = client
+    const conditions = [eq(brainstorms.task_id, parsedTaskId)];
+    if (category) {
+      conditions.push(eq(brainstorms.category, category));
+    }
+
+    const query = client
       .select()
       .from(brainstorms)
-      .where(eq(brainstorms.task_id, parsedTaskId))
+      .where(and(...conditions))
       .orderBy(brainstorms.created_at);
-
-    if (category) {
-      query = query.where(eq(brainstorms.category, category));
-    }
 
     const data = await query;
 
