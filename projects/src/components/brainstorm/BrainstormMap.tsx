@@ -4,14 +4,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Lightbulb, Trash2, MessageCircle, Send, ChevronDown, ChevronUp, User } from 'lucide-react';
+import { Lightbulb, Trash2, MessageCircle, Send, ChevronDown, ChevronUp, Sparkles, X } from 'lucide-react';
 
 interface BrainstormItem {
   id: number;
   username: string;
   content: string;
   parent_id: number | null;
-  task_id: number;
+  task_id: number | null;
+  category: string;
+  is_ai: boolean;
   created_at: string;
 }
 
@@ -33,6 +35,9 @@ const USER_COLORS = [
 ];
 
 function getUserColor(username: string, colorMap: Record<string, number>) {
+  if (username === 'AI助手') {
+    return { bg: 'bg-gradient-to-br from-violet-100 to-purple-100', text: 'text-violet-800', dot: 'bg-gradient-to-br from-violet-500 to-purple-500' };
+  }
   return USER_COLORS[colorMap[username] ?? 0];
 }
 
@@ -45,6 +50,11 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
   const [replyContent, setReplyContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [userColorMap, setUserColorMap] = useState<Record<string, number>>({});
+  const [showAiAssistant, setShowAiAssistant] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiInput, setAiInput] = useState('');
+  const [aiResponses, setAiResponses] = useState<string[]>([]);
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
 
   const fetchItems = useCallback(async () => {
     try {
@@ -53,7 +63,6 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
       const json = await res.json();
       if (json.success) {
         setItems(json.data);
-        // 分配颜色
         const userSet = new Set<string>();
         json.data.forEach((item: BrainstormItem) => userSet.add(item.username));
         const map: Record<string, number> = {};
@@ -146,11 +155,77 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
     }
   };
 
-  // 统计参与人数
-  const participants = new Set(items.map(i => i.username));
-  const topLevelItems = items.filter(i => !i.parent_id);
+  const handleAIAssistant = async () => {
+    if (!aiInput.trim()) return;
+    setAiLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/brainstorms/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ content: aiInput, type: 'idea' }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setAiResponses(json.data.responses);
+        setAiSuggestions(json.data.suggestions);
 
-  // 紧凑模式 - 在表格行中显示
+        const res2 = await fetch('/api/brainstorms', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            content: `【AI分析】${aiInput}`,
+            task_id: taskId,
+            isAi: true,
+            category: 'ai_analysis',
+          }),
+        });
+        const json2 = await res2.json();
+        if (json2.success) {
+          fetchItems();
+        }
+      }
+    } catch (err) {
+      console.error('AI 助手失败:', err);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleAddAiSuggestion = async (suggestion: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/brainstorms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ content: suggestion, task_id: taskId }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setAiInput('');
+        setAiResponses([]);
+        setAiSuggestions([]);
+        setShowAiAssistant(false);
+        fetchItems();
+      }
+    } catch (err) {
+      console.error('添加建议失败:', err);
+    }
+  };
+
+  const participants = new Set(items.map(i => i.username));
+  const topLevelItems = items.filter(i => !i.parent_id && !i.is_ai);
+  const aiItems = items.filter(i => i.is_ai);
+
   if (compact) {
     return (
       <div className="flex items-center gap-2">
@@ -174,7 +249,7 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
                   className={`w-5 h-5 rounded-full ${color.dot} flex items-center justify-center text-white text-[8px] font-bold border-2 border-white`}
                   title={username}
                 >
-                  {username.charAt(0).toUpperCase()}
+                  {username === 'AI助手' ? '🤖' : username.charAt(0).toUpperCase()}
                 </div>
               );
             })}
@@ -189,33 +264,104 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
     );
   }
 
-  // 完整展开模式
   return (
     <div className="space-y-3">
-      {/* 标题栏 - 可折叠 */}
-      <button
-        className="flex items-center gap-2 w-full text-left group"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <Lightbulb className="h-4 w-4 text-amber-500" />
-        <span className="text-sm font-medium">头脑风暴</span>
-        <Badge variant="secondary" className="text-[10px] h-5">
-          {items.length} 条意见 · {participants.size} 人参与
-        </Badge>
-        {expanded ? (
-          <ChevronUp className="h-4 w-4 text-muted-foreground ml-auto" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-muted-foreground ml-auto" />
+      <div className="flex items-center gap-2">
+        <button
+          className="flex items-center gap-2 flex-1 text-left group"
+          onClick={() => setExpanded(!expanded)}
+        >
+          <Lightbulb className="h-4 w-4 text-amber-500" />
+          <span className="text-sm font-medium">头脑风暴</span>
+          <Badge variant="secondary" className="text-[10px] h-5">
+            {items.length} 条意见 · {participants.size} 人参与
+          </Badge>
+          {expanded ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground ml-auto" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground ml-auto" />
+          )}
+        </button>
+        {expanded && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 text-xs text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+            onClick={() => setShowAiAssistant(!showAiAssistant)}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            AI 助手
+          </Button>
         )}
-      </button>
+      </div>
 
       {expanded && (
         <div className="space-y-3 pl-2 border-l-2 border-amber-200">
+          {showAiAssistant && (
+            <div className="rounded-lg border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-violet-600" />
+                  <span className="text-sm font-medium text-violet-800">AI 智能助手</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => setShowAiAssistant(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Textarea
+                  placeholder="输入你想要讨论的内容，AI 将为你提供建议..."
+                  value={aiInput}
+                  onChange={(e) => setAiInput(e.target.value)}
+                  rows={2}
+                  className="text-sm resize-none"
+                />
+                <Button
+                  size="sm"
+                  className="h-auto self-end gap-1 bg-violet-600 hover:bg-violet-700"
+                  onClick={handleAIAssistant}
+                  disabled={!aiInput.trim() || aiLoading}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {aiLoading ? '分析中...' : '分析'}
+                </Button>
+              </div>
+              {aiResponses.length > 0 && (
+                <div className="space-y-2">
+                  {aiResponses.map((response, idx) => (
+                    <div key={idx} className="text-sm text-violet-700 whitespace-pre-line">
+                      {response}
+                    </div>
+                  ))}
+                  {aiSuggestions.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {aiSuggestions.map((suggestion, idx) => (
+                        <Button
+                          key={idx}
+                          variant="outline"
+                          size="sm"
+                          className="h-6 text-[10px] gap-1 border-violet-300 text-violet-600 hover:bg-violet-100"
+                          onClick={() => handleAddAiSuggestion(suggestion)}
+                        >
+                          + {suggestion}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {loading ? (
             <div className="text-xs text-muted-foreground py-2">加载中...</div>
           ) : (
             <>
-              {/* 发表意见 */}
               <div className="flex gap-2">
                 <div className={`w-7 h-7 rounded-full ${getUserColor(currentUser.username, userColorMap).dot} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 mt-0.5`}>
                   {currentUser.username.charAt(0).toUpperCase()}
@@ -240,8 +386,32 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
                 </div>
               </div>
 
-              {/* 意见列表 */}
-              {topLevelItems.length === 0 ? (
+              {aiItems.length > 0 && (
+                <div className="space-y-2">
+                  {aiItems.map(item => {
+                    const color = getUserColor(item.username, userColorMap);
+                    return (
+                      <div key={item.id} className={`rounded-lg border border-violet-200 ${color.bg} p-3`}>
+                        <div className="flex items-start gap-2">
+                          <div className="text-lg">🤖</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`text-sm font-medium ${color.text}`}>{item.username}</span>
+                              <Badge variant="outline" className="text-[10px] h-4 border-violet-300 text-violet-600">AI</Badge>
+                              <span className="text-[10px] text-muted-foreground">
+                                {new Date(item.created_at).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <p className="text-sm leading-relaxed">{item.content.replace('【AI分析】', '')}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {topLevelItems.length === 0 && aiItems.length === 0 ? (
                 <div className="text-center py-6 text-muted-foreground">
                   <Lightbulb className="h-8 w-8 mx-auto mb-2 opacity-20" />
                   <p className="text-xs">还没有人发表意见，来写下第一条吧</p>
@@ -253,7 +423,6 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
                     const replies = items.filter(i => i.parent_id === item.id);
                     return (
                       <div key={item.id} className="space-y-2">
-                        {/* 主意见 */}
                         <div className="rounded-lg border border-gray-200 bg-white p-3">
                           <div className="flex items-start gap-2">
                             <div className={`w-7 h-7 rounded-full ${color.dot} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0`}>
@@ -294,7 +463,6 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
                           </div>
                         </div>
 
-                        {/* 回复列表 */}
                         {replies.length > 0 && (
                           <div className="ml-6 space-y-2 border-l-2 border-gray-100 pl-3">
                             {replies.map(reply => {
@@ -303,11 +471,12 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
                                 <div key={reply.id} className="rounded-lg border border-gray-100 bg-gray-50 p-2.5">
                                   <div className="flex items-start gap-2">
                                     <div className={`w-5 h-5 rounded-full ${replyColor.dot} flex items-center justify-center text-white text-[8px] font-bold flex-shrink-0`}>
-                                      {reply.username.charAt(0).toUpperCase()}
+                                      {reply.username === 'AI助手' ? '🤖' : reply.username.charAt(0).toUpperCase()}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2 mb-0.5">
                                         <span className={`text-xs font-medium ${replyColor.text}`}>{reply.username}</span>
+                                        {reply.is_ai && <Badge variant="outline" className="text-[10px] h-4 border-violet-300 text-violet-600">AI</Badge>}
                                         <span className="text-[10px] text-muted-foreground">
                                           {new Date(reply.created_at).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                         </span>
@@ -332,7 +501,6 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
                           </div>
                         )}
 
-                        {/* 回复输入框 */}
                         {replyToId === item.id && (
                           <div className="ml-6 flex gap-2">
                             <div className={`w-5 h-5 rounded-full ${getUserColor(currentUser.username, userColorMap).dot} flex items-center justify-center text-white text-[8px] font-bold flex-shrink-0 mt-1`}>
