@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDrizzleClient } from '@/storage/database/supabase-client';
 import { brainstorms, tasks } from '@/storage/database/shared/schema';
-import { eq, orderBy } from 'drizzle-orm';
+import { eq, orderBy, isNotNull } from 'drizzle-orm';
 import { verifyToken } from '@/lib/auth';
 
 function getUserFromRequest(request: NextRequest): { id: number; username: string } | null {
@@ -20,23 +20,24 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const taskId = searchParams.get('task_id');
     const category = searchParams.get('category');
-    const username = searchParams.get('username');
+
+    if (!taskId) {
+      return NextResponse.json({ success: false, error: '缺少 task_id 参数' }, { status: 400 });
+    }
+
+    const parsedTaskId = parseInt(taskId);
+    if (isNaN(parsedTaskId)) {
+      return NextResponse.json({ success: false, error: '无效的 task_id' }, { status: 400 });
+    }
 
     let query = client
       .select()
       .from(brainstorms)
+      .where(eq(brainstorms.task_id, parsedTaskId))
       .orderBy(brainstorms.created_at);
-
-    if (taskId) {
-      query = query.where(eq(brainstorms.task_id, parseInt(taskId)));
-    }
 
     if (category) {
       query = query.where(eq(brainstorms.category, category));
-    }
-
-    if (username) {
-      query = query.where(eq(brainstorms.username, username));
     }
 
     const data = await query;
@@ -67,23 +68,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: '内容不能为空' }, { status: 400 });
     }
 
-    // 如果指定了 task_id，验证任务存在
-    if (task_id) {
-      const [taskData] = await client
-        .select({ id: tasks.id })
-        .from(tasks)
-        .where(eq(tasks.id, task_id));
+    if (!task_id) {
+      return NextResponse.json({ success: false, error: '缺少 task_id' }, { status: 400 });
+    }
 
-      if (!taskData) {
-        return NextResponse.json({ success: false, error: '任务不存在' }, { status: 404 });
-      }
+    // 验证任务存在
+    const [taskData] = await client
+      .select({ id: tasks.id })
+      .from(tasks)
+      .where(eq(tasks.id, parseInt(task_id)));
+
+    if (!taskData) {
+      return NextResponse.json({ success: false, error: '任务不存在' }, { status: 404 });
     }
 
     // 创建头脑风暴
     const [data] = await client
       .insert(brainstorms)
       .values({
-        task_id: task_id ? parseInt(task_id) : null,
+        task_id: parseInt(task_id),
         username: isAi ? 'AI助手' : user.username,
         content: content.trim(),
         category: category || 'general',
