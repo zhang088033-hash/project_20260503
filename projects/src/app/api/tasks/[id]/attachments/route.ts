@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import type { TaskAttachment } from "@/types/task";
 import { tasks } from "@/storage/database/shared/schema";
 import { eq } from "drizzle-orm";
+import fs from "fs";
+import path from "path";
 
 const BUCKET_NAME = "task-attachments";
 
@@ -54,7 +56,7 @@ export async function POST(
     // 更新任务
     await client
       .update(tasks)
-      .set({ attachments: newAttachments, updated_at: new Date().toISOString() })
+      .set({ attachments: newAttachments, updated_at: new Date() })
       .where(eq(tasks.id, taskId));
 
     return NextResponse.json({
@@ -107,24 +109,16 @@ export async function DELETE(
     const currentAttachments = (task.attachments || []) as TaskAttachment[];
     const attachmentToDelete = currentAttachments.find((a) => a.id === attachmentId);
     
-    // 从 Supabase Storage 删除文件（如果配置了）
+    // 从本地文件系统删除文件
     if (attachmentToDelete?.key) {
       try {
-        const supabaseUrl = process.env.COZE_SUPABASE_URL;
-        const supabaseKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
-        if (supabaseUrl && supabaseKey) {
-          await fetch(
-            `${supabaseUrl}/storage/v1/object/${BUCKET_NAME}/${attachmentToDelete.key}`,
-            {
-              method: "DELETE",
-              headers: {
-                "Authorization": `Bearer ${supabaseKey}`,
-              },
-            }
-          );
+        const filePath = path.join(process.cwd(), "projects", "public", attachmentToDelete.key);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log("文件删除成功:", filePath);
         }
       } catch (e) {
-        console.warn("删除存储文件失败:", e);
+        console.warn("删除本地文件失败:", e);
       }
     }
 
@@ -133,7 +127,7 @@ export async function DELETE(
     // 更新任务
     await client
       .update(tasks)
-      .set({ attachments: newAttachments, updated_at: new Date().toISOString() })
+      .set({ attachments: newAttachments, updated_at: new Date() })
       .where(eq(tasks.id, taskId));
 
     return NextResponse.json({
@@ -193,9 +187,8 @@ export async function GET(
       );
     }
 
-    // 使用公开 URL 作为下载链接
-    const supabaseUrl = process.env.COZE_SUPABASE_URL;
-    const publicUrl = attachment.url || `${supabaseUrl}/storage/v1/object/public/${BUCKET_NAME}/${attachment.key}`;
+    // 使用本地文件路径作为下载链接
+    const publicUrl = attachment.url || `/${attachment.key}`;
 
     return NextResponse.json({
       success: true,
