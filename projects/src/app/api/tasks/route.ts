@@ -59,15 +59,11 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(tasks.created_by, createdBy));
     }
     
-    let query = client.select().from(tasks);
-    
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
-    
-    query = query.orderBy(tasks.deadline);
-    
-    const data = await query;
+    const data = await client
+      .select()
+      .from(tasks)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(tasks.deadline);
     
     return NextResponse.json({ success: true, data });
   } catch (error) {
