@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Lightbulb, Trash2, MessageCircle, Send, ChevronDown, ChevronUp, Sparkles, X } from 'lucide-react';
+import { Lightbulb, Trash2, MessageCircle, Send, ChevronDown, ChevronUp, Sparkles, X, AlertCircle } from 'lucide-react';
 
 interface BrainstormItem {
   id: number;
@@ -55,10 +55,12 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
   const [aiInput, setAiInput] = useState('');
   const [aiResponses, setAiResponses] = useState<string[]>([]);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchItems = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const res = await fetch(`/api/brainstorms?task_id=${taskId}`);
       const json = await res.json();
       if (json.success) {
@@ -72,9 +74,12 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
           idx++;
         });
         setUserColorMap(map);
+      } else {
+        setError(json.error || '获取数据失败');
       }
     } catch (err) {
       console.error('获取讨论失败:', err);
+      setError('网络错误，请刷新重试');
     } finally {
       setLoading(false);
     }
@@ -87,8 +92,14 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
   const handleSubmit = async () => {
     if (!newContent.trim()) return;
     setSubmitting(true);
+    setError(null);
     try {
       const token = localStorage.getItem('token');
+      if (!token) {
+        setError('请先登录');
+        setSubmitting(false);
+        return;
+      }
       const res = await fetch('/api/brainstorms', {
         method: 'POST',
         headers: {
@@ -101,9 +112,12 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
       if (json.success) {
         setNewContent('');
         fetchItems();
+      } else {
+        setError(json.error || '保存失败');
       }
     } catch (err) {
       console.error('发表意见失败:', err);
+      setError('网络错误，请重试');
     } finally {
       setSubmitting(false);
     }
@@ -112,8 +126,14 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
   const handleReply = async () => {
     if (!replyContent.trim() || !replyToId) return;
     setSubmitting(true);
+    setError(null);
     try {
       const token = localStorage.getItem('token');
+      if (!token) {
+        setError('请先登录');
+        setSubmitting(false);
+        return;
+      }
       const res = await fetch('/api/brainstorms', {
         method: 'POST',
         headers: {
@@ -131,9 +151,12 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
         setReplyContent('');
         setReplyToId(null);
         fetchItems();
+      } else {
+        setError(json.error || '回复失败');
       }
     } catch (err) {
       console.error('回复失败:', err);
+      setError('网络错误，请重试');
     } finally {
       setSubmitting(false);
     }
@@ -142,6 +165,10 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
   const handleDelete = async (id: number) => {
     try {
       const token = localStorage.getItem('token');
+      if (!token) {
+        setError('请先登录');
+        return;
+      }
       const res = await fetch(`/api/brainstorms/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
@@ -149,17 +176,26 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
       const json = await res.json();
       if (json.success) {
         fetchItems();
+      } else {
+        setError(json.error || '删除失败');
       }
     } catch (err) {
       console.error('删除失败:', err);
+      setError('网络错误，请重试');
     }
   };
 
   const handleAIAssistant = async () => {
     if (!aiInput.trim()) return;
     setAiLoading(true);
+    setError(null);
     try {
       const token = localStorage.getItem('token');
+      if (!token) {
+        setError('请先登录');
+        setAiLoading(false);
+        return;
+      }
       const res = await fetch('/api/brainstorms/ai', {
         method: 'POST',
         headers: {
@@ -189,10 +225,15 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
         const json2 = await res2.json();
         if (json2.success) {
           fetchItems();
+        } else {
+          setError(json2.error || 'AI 分析保存失败');
         }
+      } else {
+        setError(json.error || 'AI 生成失败');
       }
     } catch (err) {
       console.error('AI 助手失败:', err);
+      setError('网络错误，请重试');
     } finally {
       setAiLoading(false);
     }
@@ -201,6 +242,10 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
   const handleAddAiSuggestion = async (suggestion: string) => {
     try {
       const token = localStorage.getItem('token');
+      if (!token) {
+        setError('请先登录');
+        return;
+      }
       const res = await fetch('/api/brainstorms', {
         method: 'POST',
         headers: {
@@ -216,9 +261,12 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
         setAiSuggestions([]);
         setShowAiAssistant(false);
         fetchItems();
+      } else {
+        setError(json.error || '添加建议失败');
       }
     } catch (err) {
       console.error('添加建议失败:', err);
+      setError('网络错误，请重试');
     }
   };
 
@@ -297,6 +345,21 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
 
       {expanded && (
         <div className="space-y-3 pl-2 border-l-2 border-amber-200">
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              <span>{error}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 w-5 p-0 ml-auto"
+                onClick={() => setError(null)}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+
           {showAiAssistant && (
             <div className="rounded-lg border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-3 space-y-3">
               <div className="flex items-center justify-between">
