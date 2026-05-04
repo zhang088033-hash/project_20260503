@@ -6,7 +6,7 @@ import { eq, and, asc } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = getUserFromRequest(request);
@@ -14,7 +14,8 @@ export async function GET(
       return NextResponse.json({ success: false, error: '请先登录' }, { status: 401 });
     }
 
-    const sessionId = parseInt(params.id);
+    const { id } = await params;
+    const sessionId = parseInt(id);
     if (isNaN(sessionId)) {
       return NextResponse.json({ success: false, error: '无效的会话ID' }, { status: 400 });
     }
@@ -38,7 +39,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = getUserFromRequest(request);
@@ -46,7 +47,8 @@ export async function POST(
       return NextResponse.json({ success: false, error: '请先登录' }, { status: 401 });
     }
 
-    const sessionId = parseInt(params.id);
+    const { id } = await params;
+    const sessionId = parseInt(id);
     if (isNaN(sessionId)) {
       return NextResponse.json({ success: false, error: '无效的会话ID' }, { status: 400 });
     }
