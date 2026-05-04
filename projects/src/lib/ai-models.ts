@@ -1,4 +1,4 @@
-export type AIModel = 'openai' | 'anthropic' | 'google' | 'coze';
+export type AIModel = 'openai' | 'anthropic' | 'google' | 'coze' | 'siliconflow';
 
 export interface AIModelConfig {
   id: AIModel;
@@ -39,6 +39,14 @@ export const AI_MODELS: AIModelConfig[] = [
     name: 'Coze',
     icon: '🔧',
     description: '最适合自动化工作流',
+    maxTokens: 4096,
+    temperature: 0.7,
+  },
+  {
+    id: 'siliconflow',
+    name: 'SiliconFlow',
+    icon: '⚡',
+    description: '支持多种大模型的聚合API',
     maxTokens: 4096,
     temperature: 0.7,
   },

@@ -23,6 +23,8 @@ export async function generateAIResponseWithModel(
       return await callGoogle(systemPrompt, userMessage, agent, conversationHistory);
     case 'coze':
       return await callCoze(systemPrompt, userMessage, agent, conversationHistory);
+    case 'siliconflow':
+      return await callSiliconFlow(systemPrompt, userMessage, agent, conversationHistory);
     default:
       return generateFallbackResponse(userMessage, agent);
   }
@@ -259,6 +261,54 @@ async function callCoze(
     return assistantMessage?.content || generateFallbackResponse(userMessage, agent);
   } catch (error) {
     console.error('Coze API call failed:', error);
+    return generateFallbackResponse(userMessage, agent);
+  }
+}
+
+async function callSiliconFlow(
+  systemPrompt: string,
+  userMessage: string,
+  agent: AIAgent,
+  history: ChatMessage[]
+): Promise<string> {
+  const apiKey = process.env.SILICONFLOW_API_KEY;
+
+  if (!apiKey) {
+    console.warn('SiliconFlow API key not configured, using fallback response');
+    return generateFallbackResponse(userMessage, agent);
+  }
+
+  try {
+    const messages: ChatMessage[] = [
+      { role: 'system', content: systemPrompt },
+      ...history.filter(m => m.role !== 'system'),
+      { role: 'user', content: userMessage }
+    ];
+
+    const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'Pro/zai-org/GLM-4.7',
+        messages: messages,
+        max_tokens: 4096,
+        temperature: 0.7
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('SiliconFlow API error:', response.status, errorData);
+      return generateFallbackResponse(userMessage, agent);
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || generateFallbackResponse(userMessage, agent);
+  } catch (error) {
+    console.error('SiliconFlow API call failed:', error);
     return generateFallbackResponse(userMessage, agent);
   }
 }
