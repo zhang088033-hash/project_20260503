@@ -194,6 +194,7 @@ async function callCoze(
 ): Promise<string> {
   const botId = process.env.COZE_BOT_ID;
   const apiKey = process.env.COZE_API_KEY;
+  const cozeRegion = process.env.COZE_REGION || 'cn';
   
   if (!botId || !apiKey) {
     console.warn('Coze bot ID or API key not configured, using fallback response');
@@ -201,7 +202,17 @@ async function callCoze(
   }
 
   try {
-    const response = await fetch('https://api.coze.com/v1/chat', {
+    const baseUrl = cozeRegion === 'cn' ? 'https://api.coze.cn' : 'https://api.coze.com';
+    
+    const messages = history
+      .filter(m => m.role !== 'system')
+      .map(m => ({
+        role: m.role,
+        content: m.content,
+        content_type: 'text'
+      }));
+
+    const response = await fetch(`${baseUrl}/v3/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -209,9 +220,22 @@ async function callCoze(
       },
       body: JSON.stringify({
         bot_id: botId,
-        user: 'new_media_user',
-        query: `${systemPrompt}\n\n用户消息: ${userMessage}`,
-        stream: false
+        user_id: 'new_media_user',
+        stream: false,
+        auto_save_history: true,
+        additional_messages: [
+          {
+            role: 'system',
+            content: systemPrompt,
+            content_type: 'text'
+          },
+          ...messages,
+          {
+            role: 'user',
+            content: userMessage,
+            content_type: 'text'
+          }
+        ]
       })
     });
 
@@ -222,7 +246,17 @@ async function callCoze(
     }
 
     const data = await response.json();
-    return data.messages?.[0]?.content || generateFallbackResponse(userMessage, agent);
+    
+    if (data.code !== 0) {
+      console.error('Coze API returned error:', data.msg);
+      return generateFallbackResponse(userMessage, agent);
+    }
+    
+    const assistantMessage = data.data?.messages?.find(
+      (msg: any) => msg.role === 'assistant' && msg.type === 'answer'
+    );
+    
+    return assistantMessage?.content || generateFallbackResponse(userMessage, agent);
   } catch (error) {
     console.error('Coze API call failed:', error);
     return generateFallbackResponse(userMessage, agent);
