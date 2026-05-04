@@ -61,6 +61,26 @@ let db: ReturnType<typeof drizzle> | null = null;
  * node-pg 仅在配置里传入 `ssl` 时才会把 rejectUnauthorized 关掉。
  * 若连接串带 sslmode=require 却不传 `ssl`，仍会按系统 CA 校验，易触发 SELF_SIGNED_CERT_IN_CHAIN。
  */
+/** 去掉连接串里的 TLS 参数，避免 pg 在 parse(connectionString) 时用 sslmode 覆盖 Pool 传入的 ssl。 */
+function stripTlsQueryParams(connectionString: string): string {
+  try {
+    const u = new URL(connectionString);
+    for (const key of [
+      'sslmode',
+      'sslrootcert',
+      'sslcert',
+      'sslkey',
+      'sslcrl',
+      'sslpassword',
+    ]) {
+      u.searchParams.delete(key);
+    }
+    return u.toString();
+  } catch {
+    return connectionString;
+  }
+}
+
 function resolveSslConfig(connectionString: string): false | { rejectUnauthorized: boolean } {
   if (process.env.DB_SSLMODE?.toLowerCase() === 'disable') {
     return false;
@@ -95,11 +115,13 @@ function resolveSslConfig(connectionString: string): false | { rejectUnauthorize
 function getDbPool(): Pool {
   if (!pool) {
     preferIpv4First();
-    const connectionString = getPostgresUrl();
-    const ssl = resolveSslConfig(connectionString);
+    const fullConnectionString = getPostgresUrl();
+    const ssl = resolveSslConfig(fullConnectionString);
+    const connectionString =
+      ssl === false ? fullConnectionString : stripTlsQueryParams(fullConnectionString);
     pool = new Pool({
       connectionString,
-      ...(ssl !== false ? { ssl } : {}),
+      ...(ssl !== false ? { ssl: { rejectUnauthorized: false } } : {}),
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 10000,

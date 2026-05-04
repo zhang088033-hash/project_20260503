@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { formatDatabaseError } from '@/lib/db-error';
 import { getDrizzleClient } from '@/storage/database/supabase-client';
 import { users } from '@/storage/database/shared/schema';
 import { eq } from 'drizzle-orm';
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('登录错误:', error);
     return NextResponse.json(
-      { success: false, error: '登录失败，请稍后重试' },
+      { success: false, error: formatDatabaseError(error) },
       { status: 500 }
     );
   }
