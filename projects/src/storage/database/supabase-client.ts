@@ -57,6 +57,11 @@ function trySupabaseProjectRefFromApiKeyEnvs(): string | undefined {
   return undefined;
 }
 
+function isSupabasePoolerHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  return h.includes('pooler.supabase.com') || h.includes('pooler.supabase.co');
+}
+
 /**
  * Supabase Pooler 要求用户名为 `postgres.<project_ref>`，仅用 `postgres` 会报 XX000 Tenant or user not found。
  */
@@ -97,11 +102,45 @@ function getSupabaseProjectRefForPooler(): string | undefined {
     if (fromHost) {
       return fromHost[1];
     }
+    const user = decodeURIComponent(u.username || '');
+    const fromPoolerUser = /^postgres\.([a-z0-9]+)$/i.exec(user);
+    if (fromPoolerUser && isSupabasePoolerHost(host)) {
+      return fromPoolerUser[1];
+    }
   } catch {
     /* ignore */
   }
 
   return undefined;
+}
+
+/** 能确定 ref 时改用直连，避免 Pooler 租户路由 XX000（Vercel 上通常可用）。 */
+function rewritePoolerToDirectSupabaseUrl(raw: string): string | null {
+  const ref = getSupabaseProjectRefForPooler();
+  if (!ref) {
+    return null;
+  }
+
+  try {
+    const u = new URL(raw);
+    const host = u.hostname.toLowerCase();
+    if (!isSupabasePoolerHost(host)) {
+      return null;
+    }
+    if (/^db\.[a-z0-9]+\.(?:supabase\.co|supabase\.com)$/i.test(host)) {
+      return null;
+    }
+
+    const dbName = (u.pathname || '/postgres').replace(/^\//, '') || 'postgres';
+    const out = new URL(`postgresql://postgres@db.${ref}.supabase.co:5432/${dbName}`);
+    out.password = u.password;
+    if (!out.searchParams.get('sslmode')) {
+      out.searchParams.set('sslmode', 'require');
+    }
+    return out.toString();
+  } catch {
+    return null;
+  }
 }
 
 function fixSupabasePoolerUsername(raw: string): string {
@@ -112,7 +151,7 @@ function fixSupabasePoolerUsername(raw: string): string {
 
   try {
     const u = new URL(raw);
-    if (!u.hostname.toLowerCase().includes('pooler.supabase.com')) {
+    if (!isSupabasePoolerHost(u.hostname)) {
       return raw;
     }
     const user = decodeURIComponent(u.username || '');
@@ -132,7 +171,8 @@ function normalizePostgresUrl(raw: string): string {
   const isSupabaseHost =
     /\.supabase\.co$/i.test(trimmed) ||
     /\.supabase\.com$/i.test(trimmed) ||
-    /pooler\.supabase\.com/i.test(trimmed);
+    /pooler\.supabase\.com/i.test(trimmed) ||
+    /pooler\.supabase\.co/i.test(trimmed);
 
   if (!isSupabaseHost) {
     return trimmed;
@@ -143,7 +183,7 @@ function normalizePostgresUrl(raw: string): string {
     if (!u.searchParams.get('sslmode')) {
       u.searchParams.set('sslmode', 'require');
     }
-    if (u.hostname.includes('pooler.supabase.com') && !u.searchParams.get('pgbouncer')) {
+    if (isSupabasePoolerHost(u.hostname) && !u.searchParams.get('pgbouncer')) {
       u.searchParams.set('pgbouncer', 'true');
     }
     return u.toString();
@@ -155,7 +195,12 @@ function normalizePostgresUrl(raw: string): string {
 function getPostgresUrl(): string {
   const dbUrl = process.env.DATABASE_URL;
   if (dbUrl) {
-    return fixSupabasePoolerUsername(normalizePostgresUrl(dbUrl));
+    const normalized = normalizePostgresUrl(dbUrl);
+    const direct = rewritePoolerToDirectSupabaseUrl(normalized);
+    if (direct) {
+      return direct;
+    }
+    return fixSupabasePoolerUsername(normalized);
   }
 
   const host = process.env.DB_HOST || 'localhost';
