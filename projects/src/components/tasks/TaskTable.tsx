@@ -76,7 +76,6 @@ export function TaskTable({ tasks, onUpdateStatus, onUpdate, onDelete, currentUs
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-10"></TableHead>
                 <TableHead className="w-12">优先级</TableHead>
                 <TableHead>任务明细</TableHead>
                 <TableHead className="w-24">模块</TableHead>
@@ -92,7 +91,7 @@ export function TaskTable({ tasks, onUpdateStatus, onUpdate, onDelete, currentUs
           <TableBody>
             {tasks.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                   暂无任务
                 </TableCell>
               </TableRow>
@@ -103,22 +102,6 @@ export function TaskTable({ tasks, onUpdateStatus, onUpdate, onDelete, currentUs
                     key={task.id}
                     className={isOverdue(task) ? 'bg-red-50' : ''}
                   >
-                    {/* 展开按钮 */}
-                    <TableCell className="w-10">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
-                        title="展开头脑风暴"
-                      >
-                        {expandedTaskId === task.id ? (
-                          <ChevronUp className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </TableCell>
                     <TableCell>
                       <Badge 
                         variant="outline"
