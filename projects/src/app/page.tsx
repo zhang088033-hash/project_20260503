@@ -10,9 +10,10 @@ import { TaskStats } from '@/components/tasks/TaskStats';
 import { TaskFilters } from '@/components/tasks/TaskFilters';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Plus, AlertCircle, ListTodo, AlertTriangle, LayoutGrid, Database, Loader2, Users, LogOut } from 'lucide-react';
+import { Plus, AlertCircle, ListTodo, AlertTriangle, LayoutGrid, Database, Loader2, Users, LogOut, Sparkles } from 'lucide-react';
 import AuthForm from '@/components/AuthForm';
 import type { TaskFormData, Status, Task } from '@/types/task';
+import { useRouter } from 'next/navigation';
 
 // 责任人配置
 const RESPONSIBLE_PERSONS = [
@@ -28,6 +29,7 @@ const RESPONSIBLE_PERSONS = [
 type QuickFilter = 'today' | 'overdue' | 'all';
 
 export default function TasksPage() {
+  const router = useRouter();
   const [user, setUser] = useState<{ id: number; username: string } | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const { tasks, loading, error, fetchTasks, createTask, updateTask, deleteTask, updateTaskStatus } = useTasks();
@@ -242,6 +244,13 @@ export default function TasksPage() {
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               <span className="text-sm text-muted-foreground hidden sm:inline">欢迎，{user.username}</span>
+              <Button 
+                onClick={() => router.push('/ai-editor')} 
+                className="gap-2 bg-purple-600 hover:bg-purple-700"
+              >
+                <Sparkles className="h-4 w-4" />
+                AI Editor
+              </Button>
               <Button onClick={() => setShowCreateForm(true)} className="gap-2">
                 <Plus className="h-4 w-4" />
                 新增任务
