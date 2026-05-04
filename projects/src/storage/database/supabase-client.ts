@@ -12,6 +12,51 @@ function preferIpv4First(): void {
   }
 }
 
+/** 经典 Supabase anon/service_role JWT 的 payload 里带有 `ref`（新 sb_secret_ 密钥不是 JWT，会跳过）。 */
+function trySupabaseProjectRefFromJwt(token: string | undefined): string | undefined {
+  if (!token?.trim()) {
+    return undefined;
+  }
+  const t = token.trim();
+  const parts = t.split('.');
+  if (parts.length !== 3) {
+    return undefined;
+  }
+  try {
+    const json = Buffer.from(parts[1], 'base64url').toString('utf8');
+    const payload = JSON.parse(json) as { ref?: string };
+    const ref = payload.ref?.trim();
+    return ref || undefined;
+  } catch {
+    try {
+      const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const pad = b64.length % 4 ? 4 - (b64.length % 4) : 0;
+      const json = Buffer.from(b64 + '='.repeat(pad), 'base64').toString('utf8');
+      const payload = JSON.parse(json) as { ref?: string };
+      const ref = payload.ref?.trim();
+      return ref || undefined;
+    } catch {
+      return undefined;
+    }
+  }
+}
+
+function trySupabaseProjectRefFromApiKeyEnvs(): string | undefined {
+  for (const key of [
+    process.env.COZE_SUPABASE_SERVICE_ROLE_KEY,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    process.env.COZE_SUPABASE_ANON_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    process.env.SUPABASE_ANON_KEY,
+  ]) {
+    const ref = trySupabaseProjectRefFromJwt(key);
+    if (ref) {
+      return ref;
+    }
+  }
+  return undefined;
+}
+
 /**
  * Supabase Pooler 要求用户名为 `postgres.<project_ref>`，仅用 `postgres` 会报 XX000 Tenant or user not found。
  */
@@ -19,6 +64,11 @@ function getSupabaseProjectRefForPooler(): string | undefined {
   const explicit = process.env.SUPABASE_PROJECT_REF?.trim();
   if (explicit) {
     return explicit;
+  }
+
+  const fromJwt = trySupabaseProjectRefFromApiKeyEnvs();
+  if (fromJwt) {
+    return fromJwt;
   }
 
   for (const raw of [

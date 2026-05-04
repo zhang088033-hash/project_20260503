@@ -24,8 +24,9 @@ export function formatDatabaseError(error: unknown): string {
     (joined.includes("XX000") && /tenant|user not found/i.test(joined))
   ) {
     return (
-      `${joined}。Supabase 连接池 (pooler.supabase.com) 需使用用户名 postgres.<项目ref>；` +
-        `请在 Vercel 设置与控制台一致的 DATABASE_URL，或设置 NEXT_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co（或 SUPABASE_PROJECT_REF=<ref>）以便自动补全用户名。`
+      `${joined}。Supabase 连接池需使用用户名 postgres.<项目ref>（与控制台 Connection string 一致）。` +
+        `请在 Vercel 设置 NEXT_PUBLIC_SUPABASE_URL、或 SUPABASE_PROJECT_REF；若仍使用 JWT 形式的 anon/service_role 密钥，部署最新代码后会自动从密钥解析 ref。` +
+        `若密钥已是 sb_secret_ / sb_publishable_ 格式，请手动设置 SUPABASE_PROJECT_REF。`
     );
   }
 
