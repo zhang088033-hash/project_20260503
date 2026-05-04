@@ -86,6 +86,8 @@ export async function POST(
     const agent = getAgentById(agent_id) || getDefaultAgent();
     const model = getModelById(model_id as AIModel) || getDefaultModel();
     
+    console.log('Generating AI response:', { agent: agent.id, model: model.id, modelName: model.name });
+    
     const historyMessages = await client
       .select()
       .from(aiEditorMessages)
@@ -99,12 +101,14 @@ export async function POST(
         content: msg.content
       }));
 
+    console.log('Calling generateAIResponseWithModel...');
     const aiResponse = await generateAIResponseWithModel(
       content.trim(),
       agent,
       model,
       conversationHistory
     );
+    console.log('AI Response received:', aiResponse.substring(0, 100) + '...');
 
     const [assistantMsg] = await client
       .insert(aiEditorMessages)
