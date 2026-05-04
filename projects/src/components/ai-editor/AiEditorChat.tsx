@@ -124,10 +124,17 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
   };
 
   const sendMessage = async () => {
-    if (!inputContent.trim() || loading) return;
+    console.log('sendMessage called', { inputContent: inputContent.trim(), loading, currentSessionId, selectedModel });
+    if (!inputContent.trim() || loading) {
+      console.log('sendMessage blocked: empty or loading');
+      return;
+    }
+
+    setLoading(true);
 
     let sessionId = currentSessionId;
     if (!sessionId) {
+      console.log('Creating new session...');
       const res = await fetch('/api/ai-editor/sessions', {
         method: 'POST',
         headers: {
@@ -137,6 +144,7 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
         body: JSON.stringify({ title: `${selectedAgent.name} - 新对话` })
       });
       const data = await res.json();
+      console.log('Session created:', data);
       if (!data.success || !data.data) {
         console.error('Create session failed:', data.error);
         setLoading(false);
@@ -156,11 +164,12 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
       created_at: new Date().toISOString()
     };
 
+    console.log('Adding user message to UI:', userMessage);
     setMessages(prev => [...prev, userMessage]);
     setInputContent('');
-    setLoading(true);
 
     try {
+      console.log('Sending message to API...', { sessionId, agent: selectedAgent.id, model: selectedModel.id });
       const res = await fetch(`/api/ai-editor/sessions/${sessionId}/messages`, {
         method: 'POST',
         headers: {
@@ -174,6 +183,7 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
         })
       });
       const data = await res.json();
+      console.log('API response:', data);
       if (data.success) {
         setMessages(prev => [...prev, data.data]);
         loadSessions();
