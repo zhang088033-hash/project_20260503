@@ -57,35 +57,38 @@ function getPostgresUrl(): string {
 let pool: Pool | null = null;
 let db: ReturnType<typeof drizzle> | null = null;
 
-function resolveSslConfig(connectionString: string): false | { rejectUnauthorized: boolean } | undefined {
-  const envSslMode = process.env.DB_SSLMODE;
-  if (envSslMode) {
-    return envSslMode === 'require' || envSslMode === 'verify-full'
-      ? { rejectUnauthorized: false }
-      : false;
+/**
+ * node-pg 仅在配置里传入 `ssl` 时才会把 rejectUnauthorized 关掉。
+ * 若连接串带 sslmode=require 却不传 `ssl`，仍会按系统 CA 校验，易触发 SELF_SIGNED_CERT_IN_CHAIN。
+ */
+function resolveSslConfig(connectionString: string): false | { rejectUnauthorized: boolean } {
+  if (process.env.DB_SSLMODE?.toLowerCase() === 'disable') {
+    return false;
   }
 
   try {
     const url = new URL(connectionString);
-    const sslMode = url.searchParams.get('sslmode');
+    const sslMode = url.searchParams.get('sslmode')?.toLowerCase() ?? '';
     const host = url.hostname.toLowerCase();
-    const looksRemote =
-      host !== 'localhost' &&
-      host !== '127.0.0.1' &&
-      !host.endsWith('.local');
-
-    if (!sslMode) {
-      return looksRemote ? { rejectUnauthorized: false } : undefined;
-    }
+    const isLocal =
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '::1' ||
+      host.endsWith('.local');
 
     if (sslMode === 'disable') {
       return false;
     }
 
-    // Supabase/Neon 常用 sslmode=require，Vercel 环境下通常需要允许证书链兼容。
+    // 本机且无 sslmode：默认不走 TLS（本地 Postgres）
+    if (isLocal && !sslMode) {
+      return false;
+    }
+
+    // require / verify-* / prefer、或未写 sslmode 的远程主机：显式放宽链校验（Supabase/Vercel 常见）
     return { rejectUnauthorized: false };
   } catch {
-    return undefined;
+    return { rejectUnauthorized: false };
   }
 }
 
@@ -96,7 +99,7 @@ function getDbPool(): Pool {
     const ssl = resolveSslConfig(connectionString);
     pool = new Pool({
       connectionString,
-      ...(ssl !== undefined ? { ssl } : {}),
+      ...(ssl !== false ? { ssl } : {}),
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 10000,
