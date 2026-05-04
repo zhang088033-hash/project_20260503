@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar } from '@/components/ui/avatar';
 import { Send, Plus, Bot, User, Copy, CheckCircle2 } from 'lucide-react';
-import { AiEditorChat } from '@/components/ai-editor/AiEditorChat';
 import { AgentSelector } from '@/components/ai-editor/AgentSelector';
 import { AI_AGENTS, AIAgent } from '@/lib/ai-agents';
 import { Badge } from '@/components/ui/badge';
