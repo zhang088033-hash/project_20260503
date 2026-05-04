@@ -124,11 +124,32 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
   };
 
   const sendMessage = async () => {
-    if (!inputContent.trim() || !currentSessionId || loading) return;
+    if (!inputContent.trim() || loading) return;
+
+    let sessionId = currentSessionId;
+    if (!sessionId) {
+      const res = await fetch('/api/ai-editor/sessions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title: `${selectedAgent.name} - 新对话` })
+      });
+      const data = await res.json();
+      if (!data.success || !data.data) {
+        console.error('Create session failed:', data.error);
+        setLoading(false);
+        return;
+      }
+      sessionId = data.data.id;
+      setCurrentSessionId(sessionId);
+      setSessions(prev => [data.data, ...prev]);
+    }
 
     const userMessage: Message = {
       id: Date.now(),
-      session_id: currentSessionId,
+      session_id: sessionId,
       role: 'user',
       content: inputContent.trim(),
       content_type: selectedAgent.id,
@@ -140,7 +161,7 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/ai-editor/sessions/${currentSessionId}/messages`, {
+      const res = await fetch(`/api/ai-editor/sessions/${sessionId}/messages`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -158,9 +179,11 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
         loadSessions();
       } else {
         console.error('Send message failed:', data.error);
+        alert('发送失败：' + (data.error || '未知错误'));
       }
     } catch (error) {
       console.error('Send message error:', error);
+      alert('发送失败，请检查网络连接');
     } finally {
       setLoading(false);
     }
@@ -436,7 +459,7 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
                 />
                 <Button 
                   onClick={sendMessage}
-                  disabled={loading || !inputContent.trim() || !currentSessionId}
+                  disabled={loading || !inputContent.trim()}
                   className="self-end bg-purple-600 hover:bg-purple-700"
                 >
                   {loading ? (
