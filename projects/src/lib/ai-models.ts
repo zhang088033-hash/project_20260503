@@ -49,5 +49,6 @@ export const getModelById = (id: AIModel): AIModelConfig | undefined => {
 };
 
 export const getDefaultModel = (): AIModelConfig => {
-  return AI_MODELS[0];
+  const cozeModel = AI_MODELS.find(m => m.id === 'coze');
+  return cozeModel || AI_MODELS[0];
 };

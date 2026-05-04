@@ -274,6 +274,8 @@ function generateFallbackResponse(
       return generateScriptFallback(userMessage);
     case 'postcreator':
       return generatePostFallback(userMessage);
+    case 'sticker':
+      return generateStickerFallback(userMessage);
     case 'strategist':
       return generateStrategyFallback(userMessage);
     default:
@@ -333,6 +335,31 @@ function generatePostFallback(userMessage: string): string {
 • 3-5个精准小标签
 
 请配置 AI API Key 以获得完整内容。`;
+}
+
+function generateStickerFallback(userMessage: string): string {
+  return `🎨 关于「${userMessage}」的贴纸设计思路：
+
+🌈 **设计概念**
+• 主题：围绕${userMessage}展开
+• 风格：可爱萌系 / 搞怪有趣 / 简约清新
+
+✨ **设计元素建议**
+• 核心形象：Q版卡通角色
+• 表情：丰富多变的表情传达情感
+• 动作：生动活泼的姿态
+
+🎨 **配色方案**
+• 主色调：明亮活泼的颜色
+• 辅助色：搭配和谐的配色
+• 渐变：柔和的色彩过渡
+
+📱 **适用场景**
+• 聊天软件表情
+• 社交媒体配图
+• 品牌宣传物料
+
+请配置 AI API Key 以获得详细的设计方案。`;
 }
 
 function generateStrategyFallback(userMessage: string): string {

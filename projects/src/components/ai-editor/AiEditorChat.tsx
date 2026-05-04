@@ -12,7 +12,7 @@ import { ModelSelector } from '@/components/ai-editor/ModelSelector';
 import { AI_AGENTS, AIAgent } from '@/lib/ai-agents';
 import { AI_MODELS, AIModelConfig, getDefaultModel } from '@/lib/ai-models';
 import { Badge } from '@/components/ui/badge';
-import { Lightbulb, FileText, Share2, Target } from 'lucide-react';
+import { Lightbulb, FileText, Share2, Target, Palette } from 'lucide-react';
 
 interface Message {
   id: number;
@@ -184,6 +184,8 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
         return <FileText className="h-4 w-4" />;
       case 'postcreator':
         return <Share2 className="h-4 w-4" />;
+      case 'sticker':
+        return <Palette className="h-4 w-4" />;
       case 'strategist':
         return <Target className="h-4 w-4" />;
       default:
