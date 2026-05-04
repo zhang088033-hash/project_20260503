@@ -3,10 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { TaskAttachment } from "@/types/task";
 import { tasks } from "@/storage/database/shared/schema";
 import { eq } from "drizzle-orm";
-import fs from "fs";
-import path from "path";
-
-const BUCKET_NAME = "task-attachments";
+import { getSupabaseStorageClient, TASK_ATTACHMENTS_BUCKET } from "@/lib/supabase-storage";
 
 // 添加附件到任务
 export async function POST(
@@ -109,16 +106,18 @@ export async function DELETE(
     const currentAttachments = (task.attachments || []) as TaskAttachment[];
     const attachmentToDelete = currentAttachments.find((a) => a.id === attachmentId);
     
-    // 从本地文件系统删除文件
+    // 从 Supabase Storage 删除文件
     if (attachmentToDelete?.key) {
       try {
-        const filePath = path.join(process.cwd(), "projects", "public", attachmentToDelete.key);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-          console.log("文件删除成功:", filePath);
+        const storage = getSupabaseStorageClient();
+        const { error } = await storage.storage
+          .from(TASK_ATTACHMENTS_BUCKET)
+          .remove([attachmentToDelete.key]);
+        if (error) {
+          console.warn("删除 Storage 文件失败:", error.message);
         }
       } catch (e) {
-        console.warn("删除本地文件失败:", e);
+        console.warn("删除 Storage 文件异常:", e);
       }
     }
 
@@ -187,8 +186,8 @@ export async function GET(
       );
     }
 
-    // 使用本地文件路径作为下载链接
-    const publicUrl = attachment.url || `/${attachment.key}`;
+    // 统一走下载 API，避免依赖临时外链
+    const publicUrl = `/api/download/${encodeURIComponent(attachment.key)}`;
 
     return NextResponse.json({
       success: true,

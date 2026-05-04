@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { writeFile, mkdir, access } from "fs/promises";
-import { join } from "path";
-
-const STORAGE_DIR = join(process.cwd(), "public", "uploads");
+import {
+  ensureTaskAttachmentsBucketOnce,
+  getSupabaseStorageClient,
+  TASK_ATTACHMENTS_BUCKET,
+} from "@/lib/supabase-storage";
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,25 +32,38 @@ export async function POST(request: NextRequest) {
     const ext = file.name.split(".").pop() || "";
     const fileId = uuidv4();
     const relativePath = `tasks/${taskId || "general"}/${fileId}.${ext}`;
-    const filePath = join(STORAGE_DIR, relativePath);
-
-    // 确保目录存在
-    const dirPath = join(STORAGE_DIR, `tasks/${taskId || "general"}`);
-    try {
-      await access(dirPath);
-    } catch {
-      await mkdir(dirPath, { recursive: true });
-    }
-
     // 读取文件内容
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // 保存文件到本地
-    await writeFile(filePath, buffer);
+    const bucket = await ensureTaskAttachmentsBucketOnce();
+    if (!bucket.ok) {
+      console.error("存储桶初始化失败:", bucket.message);
+      return NextResponse.json(
+        { success: false, error: "存储未就绪，请稍后重试", detail: bucket.message },
+        { status: 500 }
+      );
+    }
 
-    // 生成访问URL
-    const publicUrl = `/uploads/${relativePath}`;
+    const storage = getSupabaseStorageClient();
+    const { error: uploadError } = await storage.storage
+      .from(TASK_ATTACHMENTS_BUCKET)
+      .upload(relativePath, buffer, {
+        contentType: file.type || getMimeType(file.name),
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Supabase 上传失败:", uploadError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "上传到存储失败，请稍后重试",
+          detail: uploadError.message,
+        },
+        { status: 500 }
+      );
+    }
 
     // 推断MIME类型（浏览器可能不提供某些文件类型的MIME）
     const mimeType = file.type || getMimeType(file.name);
@@ -62,7 +76,7 @@ export async function POST(request: NextRequest) {
         size: file.size,
         type: mimeType,
         key: relativePath,
-        url: publicUrl,
+        url: `/api/download/${encodeURIComponent(relativePath)}`,
         uploadedAt: new Date().toISOString(),
       },
     });

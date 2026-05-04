@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { formatDatabaseError } from '@/lib/db-error';
 import { getDrizzleClient } from '@/storage/database/supabase-client';
 import { tasks } from '@/storage/database/shared/schema';
 import { eq, gte, lte, lt, ne, and } from 'drizzle-orm';
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('GET /api/tasks error:', error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '查询失败' },
+      { success: false, error: formatDatabaseError(error) },
       { status: 500 }
     );
   }
@@ -113,7 +114,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('POST /api/tasks error:', error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '创建失败' },
+      { success: false, error: formatDatabaseError(error) },
       { status: 500 }
     );
   }

@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFile, access } from "fs/promises";
-import { join } from "path";
-
-const STORAGE_DIR = join(process.cwd(), "public", "uploads");
+import { getSupabaseStorageClient, TASK_ATTACHMENTS_BUCKET } from "@/lib/supabase-storage";
 
 export async function GET(
   request: NextRequest,
@@ -13,21 +10,20 @@ export async function GET(
     
     // 解码URL编码的key
     const relativePath = decodeURIComponent(key);
-    const filePath = join(STORAGE_DIR, relativePath);
-    
-    // 检查文件是否存在
-    try {
-      await access(filePath);
-    } catch {
-      console.error(`文件不存在: ${filePath}`);
+    const storage = getSupabaseStorageClient();
+    const { data, error } = await storage.storage
+      .from(TASK_ATTACHMENTS_BUCKET)
+      .download(relativePath);
+
+    if (error || !data) {
+      console.error(`下载文件失败: ${relativePath}`, error);
       return NextResponse.json(
         { success: false, error: "文件不存在或已被删除" },
         { status: 404 }
       );
     }
 
-    // 读取文件
-    const buffer = await readFile(filePath);
+    const buffer = Buffer.from(await data.arrayBuffer());
     
     // 从key中提取文件名
     const fileName = relativePath.split("/").pop() || "download";
@@ -38,6 +34,7 @@ export async function GET(
       headers: {
         "Content-Disposition": `attachment; filename="${encodeURIComponent(fileName)}"`,
         "Content-Type": contentType,
+        "Cache-Control": "private, max-age=60",
       },
     });
   } catch (error) {

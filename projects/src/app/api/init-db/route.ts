@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { formatDatabaseError } from '@/lib/db-error';
+import { ensureTaskAttachmentsBucket } from '@/lib/supabase-storage';
 import { getDrizzleClient } from '@/storage/database/supabase-client';
 import { sql } from 'drizzle-orm';
 
@@ -85,11 +87,17 @@ export async function GET() {
     await client.execute(sql`CREATE INDEX IF NOT EXISTS ai_editor_messages_session_id_idx ON ai_editor_messages(session_id)`);
     await client.execute(sql`CREATE INDEX IF NOT EXISTS ai_editor_messages_role_idx ON ai_editor_messages(role)`);
 
-    return NextResponse.json({ success: true, message: '数据库表已初始化' });
+    const storage = await ensureTaskAttachmentsBucket();
+
+    return NextResponse.json({
+      success: true,
+      message: '数据库表已初始化',
+      storage: storage.ok ? { ready: true } : { ready: false, error: storage.message },
+    });
   } catch (error) {
     console.error('Database init error:', error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '初始化失败' },
+      { success: false, error: formatDatabaseError(error) },
       { status: 500 }
     );
   }
