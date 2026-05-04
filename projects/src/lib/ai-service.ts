@@ -6,6 +6,21 @@ interface ChatMessage {
   content: string;
 }
 
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number = 30000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function generateAIResponseWithModel(
   userMessage: string,
   agent: AIAgent,
@@ -50,7 +65,7 @@ async function callOpenAI(
       { role: 'user', content: userMessage }
     ];
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -96,7 +111,7 @@ async function callAnthropic(
       .filter(m => m.role !== 'system')
       .map(m => ({ role: m.role, content: m.content }));
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -158,7 +173,7 @@ async function callGoogle(
 
     contents.push({ role: 'user', parts: [{ text: userMessage }] });
 
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
@@ -214,7 +229,7 @@ async function callCoze(
         content_type: 'text'
       }));
 
-    const response = await fetch(`${baseUrl}/v3/chat`, {
+    const response = await fetchWithTimeout(`${baseUrl}/v3/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -285,7 +300,7 @@ async function callSiliconFlow(
       { role: 'user', content: userMessage }
     ];
 
-    const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+    const response = await fetchWithTimeout('https://api.siliconflow.cn/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

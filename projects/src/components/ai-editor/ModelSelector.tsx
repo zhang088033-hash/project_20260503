@@ -50,7 +50,8 @@ export function ModelSelector({ selectedModel, onSelectModel }: ModelSelectorPro
           <code className="bg-amber-100 px-1 rounded">OPENAI_API_KEY</code>、 
           <code className="bg-amber-100 px-1 rounded">ANTHROPIC_API_KEY</code>、 
           <code className="bg-amber-100 px-1 rounded">GOOGLE_API_KEY</code> 或 
-          <code className="bg-amber-100 px-1 rounded">COZE_API_KEY</code>
+          <code className="bg-amber-100 px-1 rounded">COZE_API_KEY</code>、
+          <code className="bg-amber-100 px-1 rounded">SILICONFLOW_API_KEY</code>
         </p>
       </div>
     </div>

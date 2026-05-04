@@ -33,3 +33,5 @@ Thumbs.db
 
 # Uploaded files
 projects/public/uploads/
+
+.vercel

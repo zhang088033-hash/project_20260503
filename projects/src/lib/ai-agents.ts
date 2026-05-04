@@ -201,5 +201,6 @@ export const getAgentById = (id: string): AIAgent | undefined => {
 };
 
 export const getDefaultAgent = (): AIAgent => {
-  return AI_AGENTS[0];
+  const stickerAgent = AI_AGENTS.find(agent => agent.id === 'sticker');
+  return stickerAgent || AI_AGENTS[0];
 };
