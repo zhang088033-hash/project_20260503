@@ -12,6 +12,70 @@ function preferIpv4First(): void {
   }
 }
 
+/**
+ * Supabase Pooler 要求用户名为 `postgres.<project_ref>`，仅用 `postgres` 会报 XX000 Tenant or user not found。
+ */
+function getSupabaseProjectRefForPooler(): string | undefined {
+  const explicit = process.env.SUPABASE_PROJECT_REF?.trim();
+  if (explicit) {
+    return explicit;
+  }
+
+  for (const raw of [
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.COZE_SUPABASE_URL,
+    process.env.SUPABASE_URL,
+  ]) {
+    if (!raw?.trim()) continue;
+    try {
+      const host = new URL(raw.trim()).hostname.toLowerCase();
+      const m = /^([a-z0-9]+)\.(?:supabase\.co|supabase\.com)$/i.exec(host);
+      if (m) {
+        return m[1];
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  try {
+    const dbUrl = process.env.DATABASE_URL?.trim();
+    if (!dbUrl) return undefined;
+    const u = new URL(dbUrl);
+    const host = u.hostname.toLowerCase();
+    const fromHost = /^db\.([a-z0-9]+)\.(?:supabase\.co|supabase\.com)$/i.exec(host);
+    if (fromHost) {
+      return fromHost[1];
+    }
+  } catch {
+    /* ignore */
+  }
+
+  return undefined;
+}
+
+function fixSupabasePoolerUsername(raw: string): string {
+  const ref = getSupabaseProjectRefForPooler();
+  if (!ref) {
+    return raw;
+  }
+
+  try {
+    const u = new URL(raw);
+    if (!u.hostname.toLowerCase().includes('pooler.supabase.com')) {
+      return raw;
+    }
+    const user = decodeURIComponent(u.username || '');
+    if (user !== 'postgres') {
+      return raw;
+    }
+    u.username = `postgres.${ref}`;
+    return u.toString();
+  } catch {
+    return raw;
+  }
+}
+
 /** Supabase 托管库：补全 sslmode、PgBouncer 参数，减少 Vercel 上连库失败。 */
 function normalizePostgresUrl(raw: string): string {
   const trimmed = raw.trim();
@@ -41,7 +105,7 @@ function normalizePostgresUrl(raw: string): string {
 function getPostgresUrl(): string {
   const dbUrl = process.env.DATABASE_URL;
   if (dbUrl) {
-    return normalizePostgresUrl(dbUrl);
+    return fixSupabasePoolerUsername(normalizePostgresUrl(dbUrl));
   }
 
   const host = process.env.DB_HOST || 'localhost';

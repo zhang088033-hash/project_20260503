@@ -17,5 +17,17 @@ export function formatDatabaseError(error: unknown): string {
     parts.push(String((cause as { message: unknown }).message));
   }
 
-  return parts.filter(Boolean).join(" | ");
+  const joined = parts.filter(Boolean).join(" | ");
+
+  if (
+    /Tenant or user not found/i.test(joined) ||
+    (joined.includes("XX000") && /tenant|user not found/i.test(joined))
+  ) {
+    return (
+      `${joined}。Supabase 连接池 (pooler.supabase.com) 需使用用户名 postgres.<项目ref>；` +
+        `请在 Vercel 设置与控制台一致的 DATABASE_URL，或设置 NEXT_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co（或 SUPABASE_PROJECT_REF=<ref>）以便自动补全用户名。`
+    );
+  }
+
+  return joined;
 }
