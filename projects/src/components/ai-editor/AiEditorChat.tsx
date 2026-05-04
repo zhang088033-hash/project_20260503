@@ -6,9 +6,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar } from '@/components/ui/avatar';
-import { Send, Plus, Bot, User, Copy, CheckCircle2 } from 'lucide-react';
+import { Send, Plus, Bot, User, Copy, CheckCircle2, Settings } from 'lucide-react';
 import { AgentSelector } from '@/components/ai-editor/AgentSelector';
+import { ModelSelector } from '@/components/ai-editor/ModelSelector';
 import { AI_AGENTS, AIAgent } from '@/lib/ai-agents';
+import { AI_MODELS, AIModelConfig, getDefaultModel } from '@/lib/ai-models';
 import { Badge } from '@/components/ui/badge';
 import { Lightbulb, FileText, Share2, Target } from 'lucide-react';
 
@@ -40,10 +42,12 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputContent, setInputContent] = useState('');
   const [selectedAgent, setSelectedAgent] = useState<AIAgent>(AI_AGENTS[0]);
+  const [selectedModel, setSelectedModel] = useState<AIModelConfig>(getDefaultModel());
   const [loading, setLoading] = useState(false);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [showAgentSelector, setShowAgentSelector] = useState(false);
+  const [showModelSelector, setShowModelSelector] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -144,13 +148,16 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
         },
         body: JSON.stringify({
           content: inputContent.trim(),
-          agent_id: selectedAgent.id
+          agent_id: selectedAgent.id,
+          model_id: selectedModel.id
         })
       });
       const data = await res.json();
       if (data.success) {
         setMessages(prev => [...prev, data.data]);
         loadSessions();
+      } else {
+        console.error('Send message failed:', data.error);
       }
     } catch (error) {
       console.error('Send message error:', error);
@@ -249,15 +256,35 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
                 <Badge variant="outline" className={selectedAgent.color}>
                   {selectedAgent.icon} {selectedAgent.name}
                 </Badge>
+                <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-300">
+                  {selectedModel.icon} {selectedModel.name}
+                </Badge>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setShowAgentSelector(!showAgentSelector)}
-                className="gap-2"
-              >
-                切换助手
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    setShowAgentSelector(!showAgentSelector);
+                    setShowModelSelector(false);
+                  }}
+                  className="gap-2"
+                >
+                  切换助手
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    setShowModelSelector(!showModelSelector);
+                    setShowAgentSelector(false);
+                  }}
+                  className="gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  模型
+                </Button>
+              </div>
             </div>
           </CardHeader>
           
@@ -273,6 +300,18 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
               />
             </div>
           )}
+
+          {showModelSelector && (
+            <div className="p-4 border-b bg-gray-50">
+              <ModelSelector 
+                selectedModel={selectedModel}
+                onSelectModel={(model) => {
+                  setSelectedModel(model);
+                  setShowModelSelector(false);
+                }}
+              />
+            </div>
+          )}
           
           <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
             <ScrollArea className="flex-1 p-4">
@@ -282,8 +321,11 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
                     {getAgentIcon(selectedAgent.id)}
                   </div>
                   <h3 className="text-xl font-semibold mb-2">欢迎使用 {selectedAgent.name}！</h3>
-                  <p className="text-muted-foreground mb-6 max-w-md">
+                  <p className="text-muted-foreground mb-2">
                     {selectedAgent.description}
+                  </p>
+                  <p className="text-sm text-blue-600 mb-6">
+                    当前模型：{selectedModel.icon} {selectedModel.name}
                   </p>
                   
                   <div className="space-y-3 w-full max-w-lg">

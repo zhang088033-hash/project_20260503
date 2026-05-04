@@ -3,8 +3,9 @@ import { getDrizzleClient } from '@/storage/database/supabase-client';
 import { aiEditorSessions, aiEditorMessages } from '@/storage/database/shared/schema';
 import { verifyToken } from '@/lib/auth';
 import { eq, and, asc } from 'drizzle-orm';
-import { generateAIResponse } from '@/lib/ai-responses';
+import { generateAIResponseWithModel } from '@/lib/ai-service';
 import { getAgentById, getDefaultAgent } from '@/lib/ai-agents';
+import { getModelById, getDefaultModel, AIModel } from '@/lib/ai-models';
 
 export async function GET(
   request: NextRequest,
@@ -56,7 +57,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { content, agent_id } = body;
+    const { content, agent_id, model_id } = body;
 
     if (!content || content.trim() === '') {
       return NextResponse.json({ success: false, error: '内容不能为空' }, { status: 400 });
@@ -83,6 +84,7 @@ export async function POST(
       });
 
     const agent = getAgentById(agent_id) || getDefaultAgent();
+    const model = getModelById(model_id as AIModel) || getDefaultModel();
     
     const historyMessages = await client
       .select()
@@ -90,12 +92,19 @@ export async function POST(
       .where(eq(aiEditorMessages.session_id, sessionId))
       .orderBy(asc(aiEditorMessages.created_at));
 
-    const conversationHistory = historyMessages.map(msg => ({
-      role: msg.role as 'user' | 'assistant',
-      content: msg.content
-    }));
+    const conversationHistory = historyMessages
+      .filter(msg => msg.role !== 'user' || msg.id !== historyMessages[historyMessages.length - 1]?.id)
+      .map(msg => ({
+        role: msg.role as 'system' | 'user' | 'assistant',
+        content: msg.content
+      }));
 
-    const aiResponse = generateAIResponse(content.trim(), agent, conversationHistory);
+    const aiResponse = await generateAIResponseWithModel(
+      content.trim(),
+      agent,
+      model,
+      conversationHistory
+    );
 
     const [assistantMsg] = await client
       .insert(aiEditorMessages)
