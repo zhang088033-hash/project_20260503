@@ -149,7 +149,7 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
 
     const userMessage: Message = {
       id: Date.now(),
-      session_id: sessionId,
+      session_id: sessionId as number,
       role: 'user',
       content: inputContent.trim(),
       content_type: selectedAgent.id,
