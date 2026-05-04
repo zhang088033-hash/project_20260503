@@ -6,8 +6,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar } from '@/components/ui/avatar';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Send, Sparkles, MessageSquare, Plus, Bot, User, Copy, CheckCircle2 } from 'lucide-react';
+import { Send, Plus, Bot, User, Copy, CheckCircle2 } from 'lucide-react';
+import { AiEditorChat } from '@/components/ai-editor/AiEditorChat';
+import { AgentSelector } from '@/components/ai-editor/AgentSelector';
+import { AI_AGENTS, AIAgent } from '@/lib/ai-agents';
+import { Badge } from '@/components/ui/badge';
+import { Lightbulb, FileText, Share2, Target } from 'lucide-react';
 
 interface Message {
   id: number;
@@ -36,10 +40,11 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
   const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputContent, setInputContent] = useState('');
-  const [contentType, setContentType] = useState<'text' | 'idea' | 'script' | 'post'>('text');
+  const [selectedAgent, setSelectedAgent] = useState<AIAgent>(AI_AGENTS[0]);
   const [loading, setLoading] = useState(false);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [showAgentSelector, setShowAgentSelector] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -102,7 +107,7 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ title: '新对话' })
+        body: JSON.stringify({ title: `${selectedAgent.name} - 新对话` })
       });
       const data = await res.json();
       if (data.success) {
@@ -123,7 +128,7 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
       session_id: currentSessionId,
       role: 'user',
       content: inputContent.trim(),
-      content_type: contentType,
+      content_type: selectedAgent.id,
       created_at: new Date().toISOString()
     };
 
@@ -140,7 +145,7 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
         },
         body: JSON.stringify({
           content: inputContent.trim(),
-          content_type: contentType
+          agent_id: selectedAgent.id
         })
       });
       const data = await res.json();
@@ -165,9 +170,22 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
     }
   };
 
-  const quickPrompt = (prompt: string) => {
-    setInputContent(prompt);
+  const getAgentIcon = (agentId: string) => {
+    switch (agentId) {
+      case 'brainstorm':
+        return <Lightbulb className="h-4 w-4" />;
+      case 'scriptwriter':
+        return <FileText className="h-4 w-4" />;
+      case 'postcreator':
+        return <Share2 className="h-4 w-4" />;
+      case 'strategist':
+        return <Target className="h-4 w-4" />;
+      default:
+        return <Bot className="h-4 w-4" />;
+    }
   };
+
+  const quickPrompts = selectedAgent.examplePrompts;
 
   return (
     <div className="flex h-[calc(100vh-8rem)] gap-4">
@@ -176,7 +194,7 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-purple-600" />
+                <Bot className="h-5 w-5 text-purple-600" />
                 对话
               </CardTitle>
               <Button variant="ghost" size="sm" onClick={createSession}>
@@ -204,7 +222,10 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
                           : 'hover:bg-gray-100'
                       }`}
                     >
-                      <div className="font-medium truncate">{session.title}</div>
+                      <div className="flex items-center gap-2">
+                        {getAgentIcon(session.title.split(' - ')[0] || 'brainstorm')}
+                        <span className="font-medium truncate">{session.title}</span>
+                      </div>
                       <div className="text-xs text-muted-foreground mt-1">
                         {new Date(session.updated_at || session.created_at).toLocaleDateString('zh-CN')}
                       </div>
@@ -221,64 +242,64 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
         <Card className="flex-1 flex flex-col">
           <CardHeader className="pb-3 border-b">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Bot className="h-5 w-5 text-purple-600" />
-                AI Editor
-              </CardTitle>
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-purple-600" />
+                  AI Editor
+                </CardTitle>
+                <Badge variant="outline" className={selectedAgent.color}>
+                  {selectedAgent.icon} {selectedAgent.name}
+                </Badge>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowAgentSelector(!showAgentSelector)}
+                className="gap-2"
+              >
+                切换助手
+              </Button>
             </div>
           </CardHeader>
+          
+          {showAgentSelector && (
+            <div className="p-4 border-b bg-gray-50">
+              <AgentSelector 
+                agents={AI_AGENTS}
+                selectedAgent={selectedAgent}
+                onSelectAgent={(agent) => {
+                  setSelectedAgent(agent);
+                  setShowAgentSelector(false);
+                }}
+              />
+            </div>
+          )}
           
           <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
             <ScrollArea className="flex-1 p-4">
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-center">
-                  <Bot className="h-16 w-16 text-purple-400 mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">欢迎来到 AI Editor！</h3>
+                  <div className={`p-4 rounded-full ${selectedAgent.color} mb-4`}>
+                    {getAgentIcon(selectedAgent.id)}
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2">欢迎使用 {selectedAgent.name}！</h3>
                   <p className="text-muted-foreground mb-6 max-w-md">
-                    我是你的新媒体创作助手，可以帮你 brainstorm 创意、写脚本、生成帖子内容。
-                    试试下面的快速开始，或者直接和我聊天吧！
+                    {selectedAgent.description}
                   </p>
-                  <div className="grid grid-cols-2 gap-3 w-full max-w-lg">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => quickPrompt('帮我想一个宠物视频创意')}
-                      className="h-auto py-3 text-left"
-                    >
-                      <div>
-                        <div className="font-medium">💡 创意灵感</div>
-                        <div className="text-xs text-muted-foreground">宠物视频方向</div>
-                      </div>
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => quickPrompt('写一个关于 Namaste 的脚本')}
-                      className="h-auto py-3 text-left"
-                    >
-                      <div>
-                        <div className="font-medium">📝 脚本撰写</div>
-                        <div className="text-xs text-muted-foreground">Namaste 主题</div>
-                      </div>
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => quickPrompt('帮我生成一篇社交媒体帖子')}
-                      className="h-auto py-3 text-left"
-                    >
-                      <div>
-                        <div className="font-medium">✨ 帖子创作</div>
-                        <div className="text-xs text-muted-foreground">社交平台内容</div>
-                      </div>
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => quickPrompt('聊聊新媒体内容创作的趋势')}
-                      className="h-auto py-3 text-left"
-                    >
-                      <div>
-                        <div className="font-medium">🎯 话题讨论</div>
-                        <div className="text-xs text-muted-foreground">行业趋势分析</div>
-                      </div>
-                    </Button>
+                  
+                  <div className="space-y-3 w-full max-w-lg">
+                    <div className="text-sm text-muted-foreground text-left mb-2">试试这样问：</div>
+                    {quickPrompts.map((prompt, idx) => (
+                      <Button 
+                        key={idx}
+                        variant="outline" 
+                        onClick={() => setInputContent(prompt)}
+                        className="h-auto py-3 text-left w-full justify-start"
+                      >
+                        <span className="mr-2">{selectedAgent.icon}</span>
+                        {prompt}
+                      </Button>
+                    ))}
                   </div>
                 </div>
               ) : (
@@ -289,11 +310,21 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
                       className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       {msg.role === 'assistant' && (
-                        <Avatar className="h-8 w-8 bg-purple-600 flex-shrink-0">
-                          <Bot className="h-4 w-4 text-white" />
+                        <Avatar className="h-8 w-8 bg-purple-600 flex-shrink-0 flex items-center justify-center">
+                          {getAgentIcon(msg.content_type)}
                         </Avatar>
                       )}
                       <div className={`max-w-[80%] ${msg.role === 'user' ? 'order-2' : 'order-1'}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          {msg.role === 'assistant' && (
+                            <span className="text-xs font-medium text-purple-600">
+                              {AI_AGENTS.find(a => a.id === msg.content_type)?.name || 'AI'}
+                            </span>
+                          )}
+                          {msg.role === 'user' && (
+                            <span className="text-xs font-medium text-blue-600">你</span>
+                          )}
+                        </div>
                         <div className={`rounded-2xl px-4 py-3 whitespace-pre-wrap ${
                           msg.role === 'user'
                             ? 'bg-purple-600 text-white'
@@ -328,8 +359,8 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
                   ))}
                   {loading && (
                     <div className="flex gap-3">
-                      <Avatar className="h-8 w-8 bg-purple-600 flex-shrink-0">
-                        <Bot className="h-4 w-4 text-white animate-pulse" />
+                      <Avatar className="h-8 w-8 bg-purple-600 flex-shrink-0 flex items-center justify-center">
+                        {getAgentIcon(selectedAgent.id)}
                       </Avatar>
                       <div className="bg-gray-100 rounded-2xl px-4 py-3">
                         <div className="flex gap-1">
@@ -346,17 +377,9 @@ export function AiEditorChat({ token }: AiEditorChatProps) {
             </ScrollArea>
 
             <div className="p-4 border-t">
-              <Tabs value={contentType} onValueChange={(v) => setContentType(v as any)} className="mb-3">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="text">对话</TabsTrigger>
-                  <TabsTrigger value="idea">创意</TabsTrigger>
-                  <TabsTrigger value="script">脚本</TabsTrigger>
-                  <TabsTrigger value="post">帖子</TabsTrigger>
-                </TabsList>
-              </Tabs>
               <div className="flex gap-3">
                 <Textarea
-                  placeholder="输入你的想法，让 AI 帮你创作..."
+                  placeholder={`输入你的想法，让 ${selectedAgent.name} 帮你创作...`}
                   value={inputContent}
                   onChange={(e) => setInputContent(e.target.value)}
                   onKeyDown={(e) => {
