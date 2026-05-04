@@ -10,8 +10,9 @@ import { TaskStats } from '@/components/tasks/TaskStats';
 import { TaskFilters } from '@/components/tasks/TaskFilters';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Plus, AlertCircle, ListTodo, AlertTriangle, LayoutGrid, Database, Loader2, Users, LogOut, Sparkles } from 'lucide-react';
+import { Plus, AlertCircle, ListTodo, AlertTriangle, LayoutGrid, Database, Loader2, Users, LogOut, Sparkles, Settings } from 'lucide-react';
 import AuthForm from '@/components/AuthForm';
+import { CozeFloatingWidget } from '@/components/CozeFloatingWidget';
 import type { TaskFormData, Status, Task } from '@/types/task';
 import { useRouter } from 'next/navigation';
 
@@ -251,6 +252,14 @@ export default function TasksPage() {
                 <Sparkles className="h-4 w-4" />
                 AI Editor
               </Button>
+              <Button 
+                variant="outline"
+                onClick={() => router.push('/coze-settings')} 
+                className="gap-2"
+              >
+                <Settings className="h-4 w-4" />
+                <span className="hidden sm:inline">Coze</span>
+              </Button>
               <Button onClick={() => setShowCreateForm(true)} className="gap-2">
                 <Plus className="h-4 w-4" />
                 新增任务
@@ -424,6 +433,9 @@ export default function TasksPage() {
         onSubmit={handleCreateTask}
         mode="create"
       />
+
+      {/* Coze 悬浮窗 */}
+      <CozeFloatingWidget />
     </div>
   );
 }
