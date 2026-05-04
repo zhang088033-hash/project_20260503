@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TaskForm } from './TaskForm';
 import { TaskBrainstorm } from '@/components/brainstorm/BrainstormMap';
 import type { Task, TaskFormData, Status, TaskAttachment } from '@/types/task';
@@ -27,7 +28,7 @@ export function TaskTable({ tasks, onUpdateStatus, onUpdate, onDelete, currentUs
   const [showEditForm, setShowEditForm] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [expandedTaskId, setExpandedTaskId] = useState<number | null>(null);
+  const [brainstormTaskId, setBrainstormTaskId] = useState<number | null>(null);
 
   const handleStatusChange = async (taskId: number, newStatus: Status) => {
     await onUpdateStatus(taskId, newStatus);
@@ -275,7 +276,7 @@ export function TaskTable({ tasks, onUpdateStatus, onUpdate, onDelete, currentUs
                           variant="outline" 
                           size="sm" 
                           className="gap-1 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                          onClick={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
+                          onClick={() => setBrainstormTaskId(task.id)}
                         >
                           <Lightbulb className="h-3.5 w-3.5" />
                           脑图
@@ -283,17 +284,6 @@ export function TaskTable({ tasks, onUpdateStatus, onUpdate, onDelete, currentUs
                       </div>
                     </TableCell>
                   </TableRow>
-                  {/* 头脑风暴展开行 */}
-                  {expandedTaskId === task.id && (
-                    <TableRow key={`${task.id}-brainstorm`}>
-                      <TableCell colSpan={11} className="bg-amber-50/50 p-4">
-                        <TaskBrainstorm
-                          taskId={task.id}
-                          currentUser={currentUser}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  )}
                 </>
               ))
             )}
@@ -301,6 +291,21 @@ export function TaskTable({ tasks, onUpdateStatus, onUpdate, onDelete, currentUs
         </Table>
         </div>
       </div>
+
+      {/* 头脑风暴弹窗 */}
+      <Dialog open={brainstormTaskId !== null} onOpenChange={(open) => !open && setBrainstormTaskId(null)}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>头脑风暴</DialogTitle>
+          </DialogHeader>
+          {brainstormTaskId && (
+            <TaskBrainstorm
+              taskId={brainstormTaskId}
+              currentUser={currentUser}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* 编辑表单 */}
       <TaskForm
