@@ -330,17 +330,6 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
             <ChevronDown className="h-4 w-4 text-muted-foreground ml-auto" />
           )}
         </button>
-        {expanded && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 gap-1 text-xs text-violet-600 hover:text-violet-700 hover:bg-violet-50"
-            onClick={() => setShowAiAssistant(!showAiAssistant)}
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            AI 助手
-          </Button>
-        )}
       </div>
 
       {expanded && (
@@ -359,6 +348,42 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
               </Button>
             </div>
           )}
+
+          <div className="flex gap-2 items-start">
+            <div className={`w-7 h-7 rounded-full ${getUserColor(currentUser.username, userColorMap).dot} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 mt-0.5`}>
+              {currentUser.username.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 flex gap-2">
+              <Textarea
+                placeholder="发表你的想法、建议或意见..."
+                value={newContent}
+                onChange={(e) => setNewContent(e.target.value)}
+                rows={2}
+                className="text-sm resize-none"
+              />
+              <Button
+                size="sm"
+                className="h-auto self-end gap-1"
+                onClick={handleSubmit}
+                disabled={!newContent.trim() || submitting}
+              >
+                <Send className="h-3.5 w-3.5" />
+                {submitting ? '...' : '发表'}
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1 text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+              onClick={() => setShowAiAssistant(!showAiAssistant)}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              AI 助手
+            </Button>
+          </div>
 
           {showAiAssistant && (
             <div className="rounded-lg border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-3 space-y-3">
@@ -420,30 +445,6 @@ export function TaskBrainstorm({ taskId, currentUser, compact = false }: TaskBra
               )}
             </div>
           )}
-
-          <div className="flex gap-2">
-            <div className={`w-7 h-7 rounded-full ${getUserColor(currentUser.username, userColorMap).dot} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 mt-0.5`}>
-              {currentUser.username.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 flex gap-2">
-              <Textarea
-                placeholder="发表你的想法、建议或意见..."
-                value={newContent}
-                onChange={(e) => setNewContent(e.target.value)}
-                rows={2}
-                className="text-sm resize-none"
-              />
-              <Button
-                size="sm"
-                className="h-auto self-end gap-1"
-                onClick={handleSubmit}
-                disabled={!newContent.trim() || submitting}
-              >
-                <Send className="h-3.5 w-3.5" />
-                {submitting ? '...' : '发表'}
-              </Button>
-            </div>
-          </div>
 
           {loading ? (
             <div className="text-xs text-muted-foreground py-2">加载中...</div>

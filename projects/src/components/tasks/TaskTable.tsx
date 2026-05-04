@@ -129,7 +129,18 @@ export function TaskTable({ tasks, onUpdateStatus, onUpdate, onDelete, currentUs
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
-                        <div className="font-medium">{task.title}</div>
+                        <div className="font-medium flex items-center gap-2">
+                          {task.title}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 gap-1 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                            onClick={() => setBrainstormTaskId(task.id)}
+                          >
+                            <Lightbulb className="h-3.5 w-3.5" />
+                            <span className="text-xs">脑图</span>
+                          </Button>
+                        </div>
                         {task.description && (
                           <div className="text-xs text-muted-foreground line-clamp-2">
                             {task.description}
@@ -271,15 +282,6 @@ export function TaskTable({ tasks, onUpdateStatus, onUpdate, onDelete, currentUs
                           onClick={() => setDeletingTaskId(task.id)}
                         >
                           删除
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="gap-1 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                          onClick={() => setBrainstormTaskId(task.id)}
-                        >
-                          <Lightbulb className="h-3.5 w-3.5" />
-                          脑图
                         </Button>
                       </div>
                     </TableCell>
